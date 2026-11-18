@@ -1,0 +1,41 @@
+{
+  "entities": {
+    "UserPlanner": {
+      "title": "UserPlanner",
+      "description": "Personal leave and holiday planner synchronized across devices for an authenticated user.",
+      "type": "object",
+      "properties": {
+        "ownerId": {
+          "type": "string",
+          "description": "Firebase Auth UID of the planner owner.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "absences": {
+          "type": "object",
+          "description": "Map of '<monthIdx>-<day>' keys to absence types ('festivo', 'licenza', 'l104')."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server creation timestamp."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server last modification timestamp."
+        }
+      },
+      "required": ["ownerId", "absences", "createdAt", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "/planners/{userId}": {
+      "schema": {
+        "$ref": "#/entities/UserPlanner"
+      },
+      "description": "Stores each authenticated user's synchronized absence planner document keyed by their UID."
+    }
+  }
+}

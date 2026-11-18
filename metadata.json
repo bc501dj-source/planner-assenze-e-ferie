@@ -1,0 +1,6 @@
+{
+  "name": "Planner Assenze e Ferie",
+  "description": "Planner interattivo mobile-friendly per gestire licenza, L.104 e festivi con eliminazione automatica dei giorni trascorsi.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

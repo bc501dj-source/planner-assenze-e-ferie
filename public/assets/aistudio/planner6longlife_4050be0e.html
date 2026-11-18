@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Planner Turni e Ferie</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f9;
+            margin: 20px;
+            text-align: center;
+        }
+        h2 {
+            color: #333;
+        }
+        .legend {
+            margin-bottom: 20px;
+            padding: 10px;
+            background: #fff;
+            border: 1px solid #ddd;
+            display: inline-block;
+            border-radius: 5px;
+        }
+        .legend span {
+            display: inline-block;
+            margin: 0 10px;
+            padding: 5px 10px;
+            border: 1px solid #ccc;
+            border-radius: 3px;
+            font-weight: bold;
+        }
+        .table-container {
+            overflow-x: auto;
+            margin: 0 auto;
+            max-width: 95vw;
+        }
+        table {
+            border-collapse: collapse;
+            background-color: white;
+            margin: 0 auto;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        th, td {
+            border: 1px solid #b0b0b0;
+            padding: 4px;
+            width: 35px;
+            height: 25px;
+            text-align: center;
+            font-size: 14px;
+            cursor: pointer;
+            user-select: none;
+            position: relative; /* Necessario per la linea barrata */
+        }
+        th {
+            background-color: #6c757d;
+            color: white;
+            padding: 10px 5px;
+            font-weight: normal;
+        }
+        td.day-num {
+            background-color: #f8f9fa;
+            width: 25px;
+            font-weight: bold;
+            color: #555;
+            cursor: default;
+        }
+        
+        /* Colori richiesti */
+        .rosso { background-color: #ff0000; color: white; }
+        .giallo { background-color: #ffff00; color: black; }
+        .verde { background-color: #32cd32; color: black; }
+        .arancio { background-color: #ff9900; color: black; }
+        
+        /* Stile per i giorni passati/disabilitati (Barrato) */
+        td.disabled-cell {
+            opacity: 0.55;
+            cursor: not-allowed;
+        }
+        
+        /* Disegna una linea diagonale per barrare la cella colore */
+        td.disabled-cell::after {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(to top right, transparent calc(50% - 1px), rgba(0,0,0,0.6) 50%, transparent calc(50% + 1px));
+            pointer-events: none; /* Impedisce che la linea blocchi eventuali click, anche se già disabilitati */
+        }
+
+        /* Testo sbarrato per le lettere dei giorni disabilitati */
+        td.disabled-text {
+            text-decoration: line-through;
+            color: #888;
+            background-color: #fcfcfc;
+        }
+
+        /* Stili per il riepilogo conteggi */
+        .totals-container {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+        .total-box {
+            padding: 10px 20px;
+            border-radius: 5px;
+            font-size: 16px;
+            font-weight: bold;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            border: 1px solid #ccc;
+        }
+
+        .controls {
+            margin-top: 20px;
+        }
+        button {
+            padding: 10px 20px;
+            background-color: #dc3545;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        button:hover { background-color: #c82333; }
+    </style>
+</head>
+<body>
+
+    <h2>Planner Annuale Interattivo</h2>
+    
+    <div class="legend">
+        <span class="rosso">Rosso: Festivo</span>
+        <span class="giallo">Giallo: Ferie</span>
+        <span class="verde">Verde: L.104 (Max 3/mese)</span>
+        <span class="arancio">Arancio: RD</span>
+    </div>
+
+    <div class="table-container">
+        <table id="plannerTable">
+            <!-- La tabella verrà generata da JavaScript -->
+        </table>
+    </div>
+
+    <!-- Pannello Totali -->
+    <div class="totals-container">
+        <div class="total-box rosso">Festivi: <span id="count-rosso">0</span></div>
+        <div class="total-box giallo">Ferie: <span id="count-giallo">0</span></div>
+        <div class="total-box verde">L.104: <span id="count-verde">0</span></div>
+        <div class="total-box arancio">RD: <span id="count-arancio">0</span></div>
+    </div>
+
+    <div class="controls">
+        <button onclick="resetData()">Resetta Dati (Torna all'originale)</button>
+        <p><small>I dati vengono salvati automaticamente ad ogni clic. I giorni passati (incluso oggi) e quelli dal 14 Maggio in poi sono bloccati e barrati.</small></p>
+    </div>
+
+    <script>
+        // Configurazione Mesi aggiornata al 2026-2027 per permettere il funzionamento
+        const monthsInfo = [
+            { name: 'Agosto', year: 2026, month: 7, days: 31 },
+            { name: 'Settembre', year: 2026, month: 8, days: 30 },
+            { name: 'Ottobre', year: 2026, month: 9, days: 31 },
+            { name: 'Novembre', year: 2026, month: 10, days: 30 },
+            { name: 'Dicembre', year: 2026, month: 11, days: 31 },
+            { name: 'Gennaio', year: 2027, month: 0, days: 31 },
+            { name: 'Febbraio', year: 2027, month: 1, days: 28 },
+            { name: 'Marzo', year: 2027, month: 2, days: 31 },
+            { name: 'Aprile', year: 2027, month: 3, days: 30 },
+            { name: 'Maggio', year: 2027, month: 4, days: 31 }
+        ];
+
+        const daysInItalian = ['D', 'L', 'M', 'M', 'G', 'V', 'S'];
+
+        // Dati iniziali pre-estratti
+        const prefillData = {
+            "0-2": "rosso", "0-9": "rosso", "0-15": "rosso", "0-16": "rosso", "0-23": "rosso", "0-30": "rosso",
+            "0-3": "verde", "0-4": "verde", "0-5": "verde",
+            "1-6": "rosso", "1-13": "rosso",
+            "1-7": "verde", "1-8": "verde", "1-9": "verde",
+            "3-1": "rosso", "3-8": "rosso", "3-15": "rosso", "3-22": "rosso", "3-26": "rosso", "3-27": "rosso", "3-29": "rosso",
+            "3-2": "verde", "3-3": "verde", "3-4": "verde",
+            "3-5": "giallo", "3-9": "giallo", "3-10": "giallo", "3-11": "giallo", "3-12": "giallo", "3-16": "giallo", "3-17": "giallo", "3-18": "giallo", "3-19": "giallo", "3-23": "giallo", "3-24": "giallo", "3-25": "giallo", "3-28": "giallo", "3-30": "giallo",
+            "4-6": "rosso", "4-8": "rosso", "4-13": "rosso", "4-20": "rosso", "4-25": "rosso", "4-26": "rosso", "4-27": "rosso",
+            "4-1": "verde", "4-2": "verde", "4-3": "verde",
+            "4-7": "giallo", "4-9": "giallo", "4-10": "giallo", "4-14": "giallo", "4-15": "giallo", "4-16": "giallo", "4-17": "giallo", "4-21": "giallo", "4-24": "giallo", "4-28": "giallo", "4-31": "giallo",
+            "5-1": "rosso", "5-3": "rosso", "5-6": "rosso", "5-10": "rosso", "5-17": "rosso", "5-24": "rosso", "5-31": "rosso",
+            "5-11": "verde", "5-12": "verde", "5-13": "verde",
+            "5-18": "giallo", "5-19": "giallo", "5-20": "giallo", "5-21": "giallo", "5-25": "giallo", "5-26": "giallo", "5-27": "giallo", "5-28": "giallo",
+            "6-7": "rosso", "6-14": "rosso", "6-21": "rosso", "6-28": "rosso",
+            "6-1": "verde", "6-2": "verde", "6-3": "verde",
+            "6-8": "giallo", "6-9": "giallo", "6-10": "giallo", "6-11": "giallo", "6-15": "giallo", "6-16": "giallo", "6-17": "giallo", "6-18": "giallo", "6-22": "giallo", "6-23": "giallo", "6-24": "giallo", "6-25": "giallo",
+            "7-7": "rosso", "7-14": "rosso", "7-21": "rosso", "7-28": "rosso", "7-29": "rosso",
+            "7-1": "verde", "7-2": "verde", "7-3": "verde",
+            "7-8": "giallo", "7-9": "giallo", "7-10": "giallo", "7-11": "giallo", "7-15": "giallo", "7-16": "giallo", "7-17": "giallo", "7-18": "giallo", "7-22": "giallo", "7-23": "giallo", "7-24": "giallo", "7-25": "giallo", "7-30": "giallo", "7-31": "giallo",
+            "8-4": "rosso", "8-11": "rosso", "8-18": "rosso", "8-25": "rosso",
+            "8-5": "verde", "8-6": "verde", "8-7": "verde",
+            "8-1": "giallo", "8-8": "giallo", "8-12": "giallo", "8-13": "giallo", "8-14": "giallo", "8-15": "giallo", "8-19": "giallo", "8-20": "giallo", "8-21": "giallo", "8-22": "giallo", "8-26": "giallo", "8-27": "giallo", "8-28": "giallo",
+            "9-1": "rosso", "9-2": "rosso", "9-9": "rosso",
+            "9-3": "verde", "9-4": "verde", "9-5": "verde"
+        };
+
+        const colors = ['', 'rosso', 'giallo', 'verde', 'arancio'];
+
+        function initPlanner() {
+            const table = document.getElementById('plannerTable');
+            let savedData = JSON.parse(localStorage.getItem('plannerData'));
+            
+            if (!savedData) {
+                savedData = prefillData;
+            }
+
+            let thead = '<tr><th></th>';
+            monthsInfo.forEach(m => {
+                thead += `<th colspan="2">${m.name}</th>`;
+            });
+            thead += '</tr>';
+            table.innerHTML = thead;
+
+            // Otteniamo la data di oggi e la azzeriamo alle ore 00:00 per il calcolo preciso
+            let today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            for (let day = 1; day <= 31; day++) {
+                let row = document.createElement('tr');
+                
+                let dayNumCell = document.createElement('td');
+                dayNumCell.className = 'day-num';
+                dayNumCell.textContent = day;
+                row.appendChild(dayNumCell);
+
+                monthsInfo.forEach((m, monthIdx) => {
+                    let cellDayLetter = document.createElement('td');
+                    let cellColor = document.createElement('td');
+                    
+                    if (day <= m.days) {
+                        let date = new Date(m.year, m.month, day);
+                        let dayName = daysInItalian[date.getDay()];
+                        cellDayLetter.textContent = dayName;
+                        
+                        let cellId = `${monthIdx}-${day}`;
+                        cellColor.dataset.id = cellId;
+
+                        // Ripristina il colore salvato
+                        if (savedData[cellId]) {
+                            cellColor.classList.add(savedData[cellId]);
+                        }
+
+                        // --- REGOLE DI DISABILITAZIONE AGGIORNATE ---
+                        let isPastOrToday = date <= today; // 1. Il giorno è precedente O UGUALE a oggi
+                        let isAfterMay14 = (m.month === 4 && day >= 14); // 2. È dal 14 Maggio in poi (Maggio è il mese 4)
+
+                        if (isPastOrToday || isAfterMay14) {
+                            // Rendi la cella inattiva visivamente e aggiungi l'effetto barrato
+                            cellColor.classList.add('disabled-cell');
+                            cellDayLetter.classList.add('disabled-text');
+                            // NON aggiungiamo l'evento onclick, rendendola non modificabile
+                        } else {
+                            // Se non è passato e non è >= 14 Maggio, permette di cliccare
+                            cellColor.onclick = () => toggleColor(cellColor);
+                        }
+
+                    } else {
+                        // Gestione giorni non esistenti nel mese (es. 31 Novembre)
+                        cellDayLetter.textContent = '';
+                        cellColor.style.backgroundColor = '#eaeaea';
+                        cellColor.style.cursor = 'default';
+                    }
+
+                    row.appendChild(cellDayLetter);
+                    row.appendChild(cellColor);
+                });
+                table.appendChild(row);
+            }
+            
+            // Calcola i totali iniziali (i giorni disabilitati ma colorati fanno comunque parte del totale)
+            updateTotals();
+        }
+
+        function toggleColor(cell) {
+            // Ignora i clic su celle non assegnate
+            if(cell.style.backgroundColor === 'rgb(234, 234, 234)' || cell.style.backgroundColor === '#eaeaea') return;
+
+            let currentClass = '';
+            for (let c of colors) {
+                if (c && cell.classList.contains(c)) currentClass = c;
+            }
+
+            let nextIdx = (colors.indexOf(currentClass) + 1) % colors.length;
+            let nextClass = colors[nextIdx];
+
+            // CONTROLLO REGOLA: Max 3 giorni verdi (L.104) al mese
+            if (nextClass === 'verde') {
+                let monthIdx = cell.dataset.id.split('-')[0];
+                let greenCountInMonth = document.querySelectorAll(`td[data-id^="${monthIdx}-"].verde`).length;
+                
+                if (greenCountInMonth >= 3) {
+                    alert("Attenzione: Hai già raggiunto il limite massimo di 3 giorni di L.104 (Verde) in questo mese.");
+                    nextIdx = (nextIdx + 1) % colors.length;
+                    nextClass = colors[nextIdx];
+                }
+            }
+
+            if (currentClass) cell.classList.remove(currentClass);
+            if (nextClass) cell.classList.add(nextClass);
+
+            saveData();
+            updateTotals();
+        }
+
+        function updateTotals() {
+            document.getElementById('count-rosso').textContent = document.querySelectorAll('td.rosso').length;
+            document.getElementById('count-giallo').textContent = document.querySelectorAll('td.giallo').length;
+            document.getElementById('count-verde').textContent = document.querySelectorAll('td.verde').length;
+            document.getElementById('count-arancio').textContent = document.querySelectorAll('td.arancio').length;
+        }
+
+        function saveData() {
+            const dataToSave = {};
+            const cells = document.querySelectorAll('td[data-id]');
+            
+            cells.forEach(cell => {
+                for (let c of colors) {
+                    if (c && cell.classList.contains(c)) {
+                        dataToSave[cell.dataset.id] = c;
+                    }
+                }
+            });
+
+            localStorage.setItem('plannerData', JSON.stringify(dataToSave));
+        }
+
+        function resetData() {
+            if(confirm("Sei sicuro di voler cancellare i tuoi salvataggi e tornare alla configurazione iniziale?")) {
+                localStorage.removeItem('plannerData');
+                initPlanner();
+            }
+        }
+
+        // Avvio
+        window.onload = initPlanner;
+    </script>
+</body>
+</html>

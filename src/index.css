@@ -1,0 +1,27 @@
+@import "tailwindcss";
+
+@layer base {
+  body {
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  }
+
+  .font-mono-num {
+    font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Subtle diagonal hatching for locked end-of-cycle dates (14+ Maggio) */
+.locked-hatch {
+  background-image: repeating-linear-gradient(
+    -45deg,
+    rgba(100, 116, 139, 0.08),
+    rgba(100, 116, 139, 0.08) 4px,
+    transparent 4px,
+    transparent 8px
+  );
+}
