@@ -329,16 +329,36 @@ export default function App() {
         message: 'Accesso completato: sincronizzazione server attiva.',
       });
     } catch (error) {
-      const code =
-        typeof error === 'object' && error !== null && 'code' in error
-          ? String((error as { code?: string }).code)
-          : '';
-      if (code !== 'auth/popup-closed-by-user') {
+      console.error('Firebase Google Sign-In error:', error);
+      const errObj = typeof error === 'object' && error !== null ? (error as { code?: string; message?: string }) : null;
+      const code = errObj?.code ?? '';
+      const rawMessage = errObj?.message ?? String(error);
+
+      if (code === 'auth/popup-closed-by-user') {
         setFeedback({
-          type: 'error',
-          message: 'Accesso con Google non riuscito. Riprova.',
+          type: 'info',
+          message: 'Accesso annullato (finestra chiusa prima del login).',
         });
+        return;
       }
+
+      let userMsg = 'Accesso con Google non riuscito.';
+      if (code === 'auth/unauthorized-domain') {
+        userMsg = `Dominio non autorizzato (${window.location.hostname}). Aggiungilo nella Firebase Console in Authentication > Settings > Authorized domains.`;
+      } else if (code === 'auth/popup-blocked') {
+        userMsg = 'Il browser ha bloccato il popup di Google. Abilita i popup per questo sito e riprova.';
+      } else if (code === 'auth/operation-not-allowed') {
+        userMsg = 'Provider Google non attivo in Firebase Console (Authentication > Sign-in method > Google).';
+      } else if (code === 'auth/network-request-failed') {
+        userMsg = 'Errore di rete: impossibile raggiungere i server di autenticazione Google/Firebase.';
+      } else if (code) {
+        userMsg = `Errore di accesso (${code}): ${rawMessage}`;
+      }
+
+      setFeedback({
+        type: 'error',
+        message: userMsg,
+      });
     }
   }, []);
 
